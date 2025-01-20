@@ -12,6 +12,7 @@ import pyperclip
 from selenium.webdriver.common.action_chains import ActionChains
 from browser_actions import BrowserActions
 from profile_manager import ProfileManager
+from login_tester import LoginTester
 
 # Configure logging
 logging.basicConfig(
@@ -73,30 +74,89 @@ class BrowserController:
                 service=Service(result['webdriver']), 
                 options=chrome_options
             )
-            self.logger.info("Browser initialized successfully")
+
+            # Test login status immediately after browser initialization
+            login_tester = LoginTester(self.driver, self.logger)
+            if not login_tester.test_login_status():
+                self.logger.error(f"Profile {profile_id} failed login test")
+                self.close_browser()  # Close browser if login test fails
+                return False
+            
+            self.logger.info("Browser initialized and login verified successfully")
             return True
 
         except Exception as e:
             self.logger.error(f"Failed to initialize browser: {str(e)}")
+            if self.driver:
+                self.close_browser()
             raise Exception(f"Failed to initialize browser: {str(e)}")
+
+    def test_login_status(self):
+        """Test if profile is logged in and not banned"""
+        try:
+            self.logger.info("Testing login status...")
+            self.driver.get("https://web.groupme.com/chats")
+            time.sleep(3)
+            
+            try:
+                # Check for login button
+                login_button = WebDriverWait(self.driver, 3).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="sign-in-container"]/div/div[2]/form/button'))
+                )
+                
+                # Try clicking login button
+                self.logger.info("Found login button, attempting to login...")
+                login_button.click()
+                time.sleep(5)  # Wait to see if login succeeds
+                
+                # Check if we got to chats after login attempt
+                try:
+                    WebDriverWait(self.driver, 3).until(
+                        EC.presence_of_element_located((By.XPATH, '//*[@id="tray"]/div[1]/div[1]/button/span[2]'))
+                    )
+                    self.logger.info("Login successful")
+                    return True
+                
+                except:
+                    self.logger.error("Login failed - account likely banned")
+                    return False
+                
+            except:
+                # No login button found, check if already in chats
+                try:
+                    WebDriverWait(self.driver, 3).until(
+                        EC.presence_of_element_located((By.XPATH, '//*[@id="tray"]/div[1]/div[1]/button/span[2]'))
+                    )
+                    self.logger.info("Already logged in")
+                    return True
+                
+                except:
+                    self.logger.error("Failed to verify chat access")
+                    return False
+                
+        except Exception as e:
+            self.logger.error(f"Error testing login status: {str(e)}")
+            return False
 
     def send_message_to_group(self, link, message):
         """Send message to a GroupMe group"""
         try:
+            # Test login status before processing link
+            login_tester = LoginTester(self.driver, self.logger)
+            if not login_tester.test_login_status():
+                self.logger.error(f"Profile {self.current_profile_id} failed login test")
+                self.close_browser()  # Close the current profile
+                return {
+                    'status': 'switch_profile',  # Signal to switch to next profile
+                    'reason': 'Profile not logged in',
+                    'link': link  # Return the unprocessed link
+                }
+
+            # If login test passes, proceed with group actions
             self.logger.info(f"Navigating to group: {link}")
             self.driver.get(link)
             time.sleep(3)
             
-            # Check login status using ProfileManager
-            profile_mgr = ProfileManager(self.driver, self.logger)
-            if not profile_mgr.check_login_status():
-                self.close_browser()
-                return {
-                    'status': 'permanent_skip',
-                    'reason': 'Profile not logged in',
-                    'link': link
-                }
-
             # Handle group actions using BrowserActions
             browser_actions = BrowserActions(self.driver, self.logger)
             
@@ -107,7 +167,15 @@ class BrowserController:
             
             # Send message
             send_result = browser_actions.send_message(message)
-            return {**send_result, 'link': link}
+            if send_result['status'] == 'success':
+                self.logger.info("Message sent successfully")
+                return {
+                    'status': 'success',
+                    'reason': 'Message sent successfully',
+                    'link': link
+                }
+            else:
+                return {**send_result, 'link': link}
             
         except Exception as e:
             self.logger.error(f"General error: {str(e)}")

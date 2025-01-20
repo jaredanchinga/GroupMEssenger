@@ -4,4 +4,5 @@ requests>=2.25.1
 pyperclip>=1.8.2
 pandas
 openpyxl
-pyinstaller 
+pyinstaller
+Pillow>=9.0.0 

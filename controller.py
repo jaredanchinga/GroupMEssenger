@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox, scrolledtext, filedialog
 import logging
 import os
 import threading
+from PIL import Image, ImageTk
+import sys
 
 class LogHandler(logging.Handler):
     """Custom logging handler that writes to tkinter text widget"""
@@ -29,16 +31,39 @@ class Controller:
         self.root.title("GroupMe Automation")
         self.root.geometry("800x600")  # Made window bigger for logs
         
+        # Load logo
+        try:
+            # Get logo path for both dev and PyInstaller
+            if getattr(sys, 'frozen', False):
+                application_path = sys._MEIPASS
+            else:
+                application_path = os.path.dirname(os.path.abspath(__file__))
+                
+            logo_path = os.path.join(application_path, 'logo.png')
+            logo_image = Image.open(logo_path)
+            # Resize logo if needed
+            logo_image = logo_image.resize((64, 64), Image.Resampling.LANCZOS)
+            self.logo = ImageTk.PhotoImage(logo_image)
+            
+            # Add logo to window
+            logo_label = ttk.Label(self.root, image=self.logo)
+            logo_label.pack(pady=10)
+            
+            # Set window icon
+            self.root.iconphoto(True, self.logo)
+            
+        except Exception as e:
+            print(f"Could not load logo: {e}")
+        
         # Control flags
         self.is_paused = False
         self.is_cancelled = False
-        self.excel_path = None  # Store selected Excel path
         
         # Main frame with padding
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Left frame for message input
+        # Left frame for inputs
         left_frame = ttk.Frame(main_frame)
         left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         
@@ -50,24 +75,16 @@ class Controller:
         )
         title_label.pack(pady=10)
         
-        # Excel File Selection Frame
-        excel_frame = ttk.Frame(left_frame)
-        excel_frame.pack(fill=tk.X, pady=5)
-        
-        self.excel_label = ttk.Label(
-            excel_frame,
-            text="No Excel file selected",
-            font=('Helvetica', 9),
-            wraplength=300
+        # Links Input
+        links_label = ttk.Label(
+            left_frame,
+            text="Paste your group links below (one per line):",
+            font=('Helvetica', 10)
         )
-        self.excel_label.pack(side=tk.LEFT, padx=5)
+        links_label.pack(pady=5)
         
-        excel_button = ttk.Button(
-            excel_frame,
-            text="Select Excel File",
-            command=self.select_excel_file
-        )
-        excel_button.pack(side=tk.RIGHT, padx=5)
+        self.links_text = tk.Text(left_frame, height=8, width=40)
+        self.links_text.pack(pady=10, fill=tk.X)
         
         # Advertisement Message
         message_label = ttk.Label(
@@ -77,7 +94,7 @@ class Controller:
         )
         message_label.pack(pady=5)
         
-        self.message_text = tk.Text(left_frame, height=10, width=40)
+        self.message_text = tk.Text(left_frame, height=8, width=40)
         self.message_text.pack(pady=10, fill=tk.X)
         
         # Buttons frame
@@ -170,53 +187,36 @@ class Controller:
 
         self.process_links = None  # Will be set by ExcelController
 
-    def select_excel_file(self):
-        """Open file dialog to select Excel file"""
-        file_path = filedialog.askopenfilename(
-            title="Select Excel File",
-            filetypes=[("Excel files", "*.xlsx")],
-            initialdir=os.getcwd()
-        )
-        
-        if file_path:
-            self.excel_path = file_path
-            # Show only filename in label
-            filename = os.path.basename(file_path)
-            self.excel_label.config(text=f"Selected: {filename}")
-            logging.info(f"Excel file selected: {filename}")
-            
-            # Enable start button only if Excel is selected
-            self.start_button.config(state=tk.NORMAL)
-        else:
-            self.excel_path = None
-            self.excel_label.config(text="No Excel file selected")
-            self.start_button.config(state=tk.DISABLED)
-
     def start(self):
-        """Start automation only if Excel file is selected"""
-        if not self.excel_path:
-            messagebox.showerror("Error", "Please select an Excel file first")
+        """Start automation with pasted links"""
+        links = self.links_text.get("1.0", tk.END).strip().split('\n')
+        links = [link.strip() for link in links if link.strip()]
+        
+        if not links:
+            messagebox.showerror("Error", "Please paste some group links")
             return
-            
+        
         message = self.message_text.get("1.0", tk.END).strip()
-        if message:
-            # Enable control buttons
-            self.pause_button.config(state=tk.NORMAL)
-            self.cancel_button.config(state=tk.NORMAL)
-            self.start_button.config(state=tk.DISABLED)
-            
-            self.status_label.config(text="Processing...")
-            self.message = message
-            
-            # Start automation in a separate thread to keep UI responsive
-            self.automation_thread = threading.Thread(
-                target=self.run_automation,
-                args=(message,),
-                daemon=True
-            )
-            self.automation_thread.start()
-        else:
+        if not message:
             messagebox.showerror("Error", "Please enter an advertisement message")
+            return
+        
+        # Enable control buttons
+        self.pause_button.config(state=tk.NORMAL)
+        self.cancel_button.config(state=tk.NORMAL)
+        self.start_button.config(state=tk.DISABLED)
+        
+        self.status_label.config(text="Processing...")
+        self.message = message
+        self.links = links
+        
+        # Start automation in a separate thread
+        self.automation_thread = threading.Thread(
+            target=self.run_automation,
+            args=(message,),
+            daemon=True
+        )
+        self.automation_thread.start()
 
     def run_automation(self, message):
         """Run the automation in a separate thread"""
@@ -230,8 +230,9 @@ class Controller:
             # Update UI when done
             self.root.after(0, self.automation_completed)
         except Exception as e:
+            error_msg = str(e)
             # Update UI on error
-            self.root.after(0, lambda: self.automation_error(str(e)))
+            self.root.after(0, lambda msg=error_msg: self.automation_error(msg))
 
     def automation_completed(self):
         """Called when automation is complete"""

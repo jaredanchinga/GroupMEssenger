@@ -12,15 +12,18 @@ A Python-based automation tool for GroupMe messaging using Selenium WebDriver an
 - Pause/Resume functionality
 - Detailed logging system
 
-## Requirements
+## Installation Options
 
-- Python 3.7+
-- IX Browser
-- Chrome WebDriver
-- Required Python packages (see requirements.txt)
+### Option 1: Executable Version (Recommended for Windows Users)
+1. Download the latest release from:
+   ```
+   https://github.com/jaredanchinga/GroupMEssenger/releases/latest
+   ```
+2. Extract the ZIP file to your preferred location
+3. Install IX Browser and ensure it's properly configured
+4. Run `GroupMEssenger.exe`
 
-## Installation
-
+### Option 2: From Source Code
 1. Clone this repository:
    ```bash
    git clone https://github.com/jaredanchinga/GroupMEssenger.git
@@ -34,6 +37,13 @@ A Python-based automation tool for GroupMe messaging using Selenium WebDriver an
 
 ## Usage
 
+### For Executable Version
+1. Run `GroupMEssenger.exe`
+2. On first run, the application will create an Excel file in the same directory
+3. Add your GroupMe group links to the 'links' sheet in the created Excel file
+4. Enter your message and start the automation
+
+### For Source Code Version
 1. Create an Excel file using create_excel.py:
    ```bash
    python create_excel.py
@@ -47,6 +57,13 @@ A Python-based automation tool for GroupMe messaging using Selenium WebDriver an
    ```
 
 4. Select your Excel file, enter your message, and start the automation
+
+## System Requirements
+
+- Windows 10 or later (for .exe version)
+- IX Browser installed
+- 4GB RAM minimum
+- Internet connection
 
 ## Project Structure
 

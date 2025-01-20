@@ -6,35 +6,74 @@ from selenium.webdriver.common.action_chains import ActionChains
 import pyperclip
 import time
 import logging
+from message_sender import MessageSender
+from delay_utils import random_delay, click_delay, profile_switch_delay
 
 class BrowserActions:
     def __init__(self, driver, logger):
         self.driver = driver
         self.logger = logger
+        self.message_sender = MessageSender(driver, logger)
 
     def join_group(self, link):
         """Handle group joining logic"""
         try:
+            random_delay()  # Keep longer delay before looking for button
             self.logger.info("Looking for group action button...")
-            action_button = WebDriverWait(self.driver, 5).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="group-preview"]/div[3]/div[4]/button'))
-            )
+            
+            # Check for expired link message
+            try:
+                continue_button = WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="group-preview"]/div[3]/div[2]/button'))
+                )
+                if continue_button.text.strip().upper() == "CONTINUE TO GROUPME":
+                    self.logger.warning("Link is expired or no permission to join")
+                    return {
+                        'status': 'permanent_skip',
+                        'reason': 'Link expired or no permission'
+                    }
+            except:
+                pass  # Not an expired link, continue normal flow
+            
+            # First try the button with span
+            try:
+                action_button = WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="group-preview"]/div[3]/div[4]/button/span'))
+                )
+                if action_button.text.strip().upper() == "PENDING":
+                    self.logger.warning("Group is closed with pending approval, skipping...")
+                    return {
+                        'status': 'permanent_skip',
+                        'reason': 'Group requires admin approval'
+                    }
+            except:
+                # If no span, try the regular button
+                action_button = WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="group-preview"]/div[3]/div[4]/button'))
+                )
+            
             button_text = action_button.text.strip().upper()
             
-            if button_text == "PENDING":
-                self.logger.warning("Group is closed with pending approval, skipping...")
-                return {
-                    'status': 'permanent_skip',
-                    'reason': 'Group requires admin approval'
-                }
-            elif button_text == "VIEW":
+            if button_text == "VIEW":
                 self.logger.info("Already a member, clicking View...")
+                click_delay()  # Shorter delay for clicking
                 action_button.click()
                 time.sleep(3)
                 return {'status': 'success'}
             else:  # Assume JOIN
-                # Try joining with limit detection
-                return self._handle_join_button_with_limit_check(action_button, link)
+                self.logger.info("Join button found, attempting to join...")
+                click_delay()  # Shorter delay for clicking
+                action_button.click()
+                time.sleep(3)
+                
+                # Check for security question
+                if self._check_security_question():
+                    return {
+                        'status': 'permanent_skip',
+                        'reason': 'Group has security question'
+                    }
+                
+                return self._verify_membership(link)
                 
         except Exception as e:
             self.logger.error(f"Error with group action button: {str(e)}")
@@ -42,52 +81,6 @@ class BrowserActions:
                 'status': 'retry',
                 'reason': str(e)
             }
-
-    def _handle_join_button_with_limit_check(self, action_button, link):
-        """Handle joining with limit detection"""
-        self.logger.info("Join button found, attempting to join...")
-        
-        # First attempt
-        action_button.click()
-        time.sleep(3)
-        
-        # Check if still on join button
-        try:
-            join_button = WebDriverWait(self.driver, 2).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="group-preview"]/div[3]/div[4]/button'))
-            )
-            if join_button.text.strip().upper() == "JOIN":
-                self.logger.info("Join button still present, trying one more time...")
-                
-                # Second attempt
-                join_button.click()
-                time.sleep(3)
-                
-                # Check again
-                try:
-                    final_button = WebDriverWait(self.driver, 2).until(
-                        EC.presence_of_element_located((By.XPATH, '//*[@id="group-preview"]/div[3]/div[4]/button'))
-                    )
-                    if final_button.text.strip().upper() == "JOIN":
-                        self.logger.warning("Profile has reached join limit!")
-                        return {
-                            'status': 'profile_limit',
-                            'reason': 'Profile has reached join limit'
-                        }
-                except:
-                    pass  # Button changed, continue normal flow
-                    
-        except:
-            pass  # Button changed, continue normal flow
-        
-        # Continue with normal security check and membership verification
-        if self._check_security_question():
-            return {
-                'status': 'permanent_skip',
-                'reason': 'Group has security question'
-            }
-        
-        return self._verify_membership(link)
 
     def _check_security_question(self):
         """Check if group has security question"""
@@ -102,32 +95,8 @@ class BrowserActions:
             return False
 
     def send_message(self, message):
-        """Send message to group"""
-        try:
-            message_input = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//*[starts-with(@id, 'message-composer-')]"))
-            )
-            
-            self.logger.info("Found message input, attempting to send message...")
-            pyperclip.copy(message)
-            ActionChains(self.driver).click(message_input).perform()
-            ActionChains(self.driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
-            time.sleep(1)
-            message_input.send_keys(Keys.ENTER)
-            time.sleep(2)
-            
-            self.logger.info("Message sent successfully to group")
-            return {
-                'status': 'success',
-                'reason': 'Message sent successfully'
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Error sending message: {str(e)}")
-            return {
-                'status': 'retry',
-                'reason': str(e)
-            } 
+        """Send message using MessageSender"""
+        return self.message_sender.send_message(message)
 
     def _verify_membership(self, link):
         """Verify successful group membership"""
