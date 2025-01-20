@@ -1,4 +1,4 @@
-# GroupMe Automation Tool
+# GroupMe Messenger
 
 A Python-based automation tool for GroupMe messaging using Selenium WebDriver and IX Browser.
 
@@ -79,7 +79,7 @@ A Python-based automation tool for GroupMe messaging using Selenium WebDriver an
 
 MIT License
 
-Copyright (c) 2024 Jared Anchinga
+Copyright (c) 2025 Jared Anchinga
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
