@@ -70,10 +70,13 @@ A Python-based automation tool for GroupMe messaging using Selenium WebDriver an
 - `main_app.py`: Main application entry point
 - `controller.py`: Main application controller
 - `browser_controller.py`: Browser automation logic
-- `excel_handler.py`: Excel file management
-- `gui.py`: GUI implementation
-- `profile_manager.py`: IX Browser profile management
 - `browser_actions.py`: Browser interaction implementations
+- `message_sender.py`: Message sending functionality
+- `login_tester.py`: Profile login verification
+- `delay_utils.py`: Timing and delay management
+- `results_handler.py`: CSV results storage
+- `profile_manager.py`: IX Browser profile management
+- `gui.py`: GUI implementation
 
 ## License
 
