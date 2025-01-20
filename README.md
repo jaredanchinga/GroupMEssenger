@@ -5,12 +5,12 @@ A Python-based automation tool for GroupMe messaging using Selenium WebDriver an
 ## Features
 
 - Automated message sending to multiple GroupMe groups
-- Excel-based link management
 - GUI interface for easy operation
 - Profile management for multiple accounts
 - Automated group joining capabilities
 - Pause/Resume functionality
 - Detailed logging system
+- CSV results tracking
 
 ## Installation Options
 
@@ -21,42 +21,24 @@ A Python-based automation tool for GroupMe messaging using Selenium WebDriver an
    ```
 2. Extract the ZIP file to your preferred location
 3. Install IX Browser and ensure it's properly configured
-4. Run `GroupMEssenger.exe`
+4. Run `GroupMessenger_v1.0.1.exe`
 
-### Option 2: From Source Code
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/jaredanchinga/GroupMEssenger.git
-   cd GroupMEssenger
-   ```
-2. Install required packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Install IX Browser and ensure it's properly configured
+## Profile Setup (Important)
+1. Create multiple profiles in IX Browser
+2. For each profile:
+    - Log into GroupMe account
+    - Enable "Save Login" in browser settings
+    - Test login by closing and reopening profile
+3. Recommended: Set up at least 3-5 profiles
+4. Note: Having multiple logged-in profiles helps maintain operation if one gets logged out
 
 ## Usage
 
-### For Executable Version
-1. Run `GroupMEssenger.exe`
-2. On first run, the application will create an Excel file in the same directory
-3. Add your GroupMe group links to the 'links' sheet in the created Excel file
-4. Enter your message and start the automation
-
-### For Source Code Version
-1. Create an Excel file using create_excel.py:
-   ```bash
-   python create_excel.py
-   ```
-
-2. Add your GroupMe group links to the 'links' sheet in the created Excel file
-
-3. Run the application:
-   ```bash
-   python main_app.py
-   ```
-
-4. Select your Excel file, enter your message, and start the automation
+1. Run the application
+2. Paste your GroupMe group links (one per line)
+3. Enter your message
+4. Click Start to begin automation
+5. Use Pause/Resume as needed
 
 ## System Requirements
 
